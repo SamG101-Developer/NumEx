@@ -26,7 +26,6 @@ class numex::BigInt {
   auto _Div(BigInt &rmdDividend, BigInt &resQuot, BigInt const &divisor) const -> void;
   auto _SetDecimal(std::string const &s) -> void;
   auto _SetNumber(std::string const &num, int base) -> void;
-  NUMEX_NODISCARD auto _IsNegative() const -> bool;
   NUMEX_NODISCARD auto _Base2(std::uint64_t base) const -> std::string;
   auto _URShift(std::uint64_t shift) -> BigInt&;
   auto _AddUintAt(std::uint64_t index, std::uint64_t operand) -> void;
@@ -38,6 +37,8 @@ public:
   BigInt();
   explicit BigInt(std::int64_t num);
   explicit BigInt(std::string const &text);
+
+  NUMEX_NODISCARD auto IsNegative() const -> bool;
 
   NUMEX_NODISCARD auto Bin() const -> std::string;
   NUMEX_NODISCARD auto Hex() const -> std::string;
@@ -273,7 +274,7 @@ auto numex::BigInt::_SetDecimal(std::string const &s) -> void {
 }
 
 auto numex::BigInt::_EraseLeadingSign() -> void {
-  auto const neg = _IsNegative();
+  auto const neg = IsNegative();
   auto const comp = neg ? ~std::uint64_t{0} : std::uint64_t{0};
 
   for (auto i = _Number.size() - 1; i != 0; i--) {
@@ -284,13 +285,13 @@ auto numex::BigInt::_EraseLeadingSign() -> void {
 }
 
 auto numex::BigInt::_ExtendNumberBySizeOf(BigInt &extNumber, BigInt const &a) -> void {
-  auto const fill = extNumber._IsNegative() ? ~std::uint64_t{0} : std::uint64_t{0};
+  auto const fill = extNumber.IsNegative() ? ~std::uint64_t{0} : std::uint64_t{0};
   if (a._Number.size() > extNumber._Number.size()) {
     extNumber._Number.resize(a._Number.size(), fill);
   }
 }
 
-auto numex::BigInt::_IsNegative() const -> bool {
+auto numex::BigInt::IsNegative() const -> bool {
   return (_Number.back() >> (_LimbBits - 1)) != 0;
 }
 
@@ -352,7 +353,7 @@ auto numex::BigInt::Base(std::uint64_t const base) const -> std::string {
   auto const isBaseBig = (base > _Alphabet.size());
 
   auto temp = *this;
-  auto const neg = _IsNegative();
+  auto const neg = IsNegative();
   if (neg) {
     temp = -temp;
   }
@@ -552,14 +553,14 @@ auto numex::BigInt::operator +=(BigInt const &a) -> BigInt& {
 
   auto carry = false;
 
-  auto const neg = _IsNegative();
-  auto const negA = aa._IsNegative();
+  auto const neg = IsNegative();
+  auto const negA = aa.IsNegative();
 
   for (auto const &[limb, other] : std::views::zip(_Number, bin)) {
     AddUintWithCarry(limb, other, carry);
   }
 
-  if ((neg == negA) && neg != _IsNegative()) {
+  if ((neg == negA) && neg != IsNegative()) {
     _Number.push_back(neg ? ~std::uint64_t{0} : std::uint64_t{0});
   }
 
@@ -568,7 +569,7 @@ auto numex::BigInt::operator +=(BigInt const &a) -> BigInt& {
 }
 
 auto numex::BigInt::operator +=(std::int64_t const a) -> BigInt& {
-  auto const neg = _IsNegative();
+  auto const neg = IsNegative();
   auto const negA = a < 0;
   auto carry = false;
   AddUintWithCarry(_Number[0], static_cast<std::uint64_t>(a), carry);
@@ -587,7 +588,7 @@ auto numex::BigInt::operator +=(std::int64_t const a) -> BigInt& {
     }
   }
 
-  if (neg == negA && neg != _IsNegative()) {
+  if (neg == negA && neg != IsNegative()) {
     _Number.push_back(neg ? ~std::uint64_t{0} : std::uint64_t{0});
   }
 
@@ -610,11 +611,11 @@ auto numex::BigInt::operator *(std::int64_t const a) const -> BigInt {
 auto numex::BigInt::operator *=(std::int64_t const a) -> BigInt& {
   if (a == 1) return *this;
 
-  auto const neg = (a < 0) != _IsNegative();
+  auto const neg = (a < 0) != IsNegative();
   // Negating INT64_MIN overflows, so take the magnitude in unsigned space.
   auto const magnitude = a < 0 ? ~static_cast<std::uint64_t>(a) + 1 : static_cast<std::uint64_t>(a);
 
-  if (_IsNegative()) {
+  if (IsNegative()) {
     *this = -*this;
   }
 
@@ -637,7 +638,7 @@ auto numex::BigInt::operator *=(std::int64_t const a) -> BigInt& {
     }
   }
 
-  if (_IsNegative()) {
+  if (IsNegative()) {
     _Number.push_back(0);
   }
 
@@ -655,13 +656,13 @@ auto numex::BigInt::operator *=(BigInt const &a) -> BigInt& {
 
   auto aa = a;
 
-  auto const neg = (a._IsNegative() != _IsNegative());
+  auto const neg = (a.IsNegative() != IsNegative());
 
-  if (_IsNegative()) {
+  if (IsNegative()) {
     *this = -(*this);
   }
 
-  if (aa._IsNegative()) {
+  if (aa.IsNegative()) {
     aa = -aa;
   }
 
@@ -766,7 +767,6 @@ auto numex::BigInt::operator -=(BigInt const &a) -> BigInt& {
 
 auto numex::BigInt::operator -=(std::int64_t const a) -> BigInt& {
   if (a == std::numeric_limits<std::int64_t>::min()) {
-    // -a is not representable, so widen before negating.
     *this += -BigInt(a);
     return *this;
   }
@@ -775,13 +775,11 @@ auto numex::BigInt::operator -=(std::int64_t const a) -> BigInt& {
 }
 
 auto numex::BigInt::operator --() -> BigInt& {
-  // prefix
   *this -= 1;
   return *this;
 }
 
 auto numex::BigInt::operator --(int) -> BigInt {
-  // postfix
   auto b = *this;
   *this -= 1;
   return b;
@@ -853,7 +851,6 @@ auto numex::BigInt::operator %=(std::int64_t const a) -> BigInt& {
 
 auto numex::BigInt::AddUintWithCarry(std::uint64_t &operand1res, std::uint64_t const operand2,
   bool &carry) const -> void {
-  // Unsigned addition wraps, so a sum smaller than an addend is exactly a carry out.
   auto const partial = operand1res + operand2;
   auto const carriedPartial = partial < operand1res;
   auto const result = partial + static_cast<std::uint64_t>(carry);
@@ -861,7 +858,6 @@ auto numex::BigInt::AddUintWithCarry(std::uint64_t &operand1res, std::uint64_t c
   operand1res = result;
 }
 
-// it doesn't check bounds
 auto numex::BigInt::_AddUintAt(std::uint64_t index, std::uint64_t const operand) -> void {
   auto carry = false;
   AddUintWithCarry(_Number[index], operand, carry);
@@ -884,7 +880,6 @@ auto numex::BigInt::_Div(std::uint64_t const &dividend, std::uint64_t const &div
   auto quot = static_cast<std::uint64_t>(0);
   auto rmd = static_cast<std::uint64_t>(0);
 
-  // count prevRmd
   if (prevRmd) {
     quot = static_cast<std::uint64_t>(-1) / divisor;
     rmd = static_cast<std::uint64_t>(-1) % divisor + 1;
@@ -897,7 +892,6 @@ auto numex::BigInt::_Div(std::uint64_t const &dividend, std::uint64_t const &div
     rmd *= prevRmd;
   }
 
-  // division of dividend and divisor
   quot += dividend / divisor;
   rmd += dividend % divisor;
 
@@ -917,18 +911,17 @@ auto numex::BigInt::_Div(BigInt &rmdDividend, BigInt &resQuot, BigInt const &div
   auto d = divisor;
   auto &c = resQuot;
 
-  auto const neg = (a._IsNegative() != d._IsNegative());
+  auto const neg = (a.IsNegative() != d.IsNegative());
 
-  if (a._IsNegative()) {
+  if (a.IsNegative()) {
     a = -a;
   }
 
-  if (d._IsNegative()) {
+  if (d.IsNegative()) {
     d = -d;
   }
 
   if (a < d) {
-    // c = 0;
     if (neg) {
       a = -a;
     }
@@ -938,13 +931,11 @@ auto numex::BigInt::_Div(BigInt &rmdDividend, BigInt &resQuot, BigInt const &div
   auto const dvsr = d;
   auto &dnum = d._Number;
 
-  // add zeros at the end
   auto const diff = a._Number.size() - dnum.size();
   for (auto i = diff; i != 0; --i) {
     dnum.insert(dnum.begin(), 0);
   }
 
-  // find where to subtruct
   while (a >= d) {
     d <<= 1;
   }
@@ -953,7 +944,6 @@ auto numex::BigInt::_Div(BigInt &rmdDividend, BigInt &resQuot, BigInt const &div
     d >>= 1;
   }
 
-  // do subtruction
   while (d >= dvsr) {
     c <<= 1;
     if (d <= a) {
@@ -997,10 +987,6 @@ auto operator %(std::int64_t const a, numex::BigInt const &b) -> numex::BigInt {
   return aa % b;
 }
 
-// ============================================================================
-// Shifts
-// ============================================================================
-
 auto numex::BigInt::operator >>(std::uint64_t const shift) const -> BigInt {
   auto b = *this;
   b >>= shift;
@@ -1008,22 +994,19 @@ auto numex::BigInt::operator >>(std::uint64_t const shift) const -> BigInt {
 }
 
 auto numex::BigInt::operator >>=(std::uint64_t const shift) -> BigInt& {
-  auto const neg = _IsNegative();
+  auto const neg = IsNegative();
   auto sh = shift;
 
   if (sh >= _LimbBits) {
     auto const q = sh / _LimbBits;
     sh %= _LimbBits;
     if (q >= _Number.size()) {
-      // Every bit shifted out; an arithmetic shift still leaves the sign behind.
       _Number.assign(1, neg ? ~std::uint64_t{0} : std::uint64_t{0});
       return *this;
     }
     _Number.erase(_Number.begin(), _Number.begin() + static_cast<std::ptrdiff_t>(q));
   }
 
-  // A zero shift would make the masks below shift by the full limb width, which
-  // is undefined, and there is nothing left to do anyway.
   if (sh == 0) {
     _EraseLeadingSign();
     return *this;
@@ -1046,7 +1029,6 @@ auto numex::BigInt::operator >>=(std::uint64_t const shift) -> BigInt& {
   return *this;
 }
 
-// unsigned right shift
 auto numex::BigInt::_URShift(std::uint64_t const shift) -> BigInt& {
   auto sh = shift;
 
@@ -1093,9 +1075,8 @@ auto numex::BigInt::operator <<=(std::uint64_t const shift) -> BigInt& {
     q = sh / _LimbBits;
     sh %= _LimbBits;
   }
-  auto const neg = _IsNegative();
+  auto const neg = IsNegative();
 
-  // Skipped entirely for a zero shift: the masks would shift by a full limb width.
   if (sh != 0) {
     auto const maskShift = _LimbBits - sh;
     auto const mask = ~(~std::uint64_t{0} >> sh);
@@ -1114,7 +1095,7 @@ auto numex::BigInt::operator <<=(std::uint64_t const shift) -> BigInt& {
     }
   }
 
-  if (neg != _IsNegative()) {
+  if (neg != IsNegative()) {
     _Number.push_back(neg ? ~std::uint64_t{0} : std::uint64_t{0});
   }
 
@@ -1126,21 +1107,15 @@ auto numex::BigInt::operator <<=(std::uint64_t const shift) -> BigInt& {
   return *this;
 }
 
-// ============================================================================
-// Comparison
-// ============================================================================
-
 auto numex::BigInt::operator ==(BigInt const &b) const -> bool {
   return _Number == b._Number;
 }
 
 auto numex::BigInt::operator <=>(BigInt const &b) const -> std::strong_ordering {
-  auto const neg = _IsNegative();
-  auto const negB = b._IsNegative();
+  auto const neg = IsNegative();
+  auto const negB = b.IsNegative();
   if (neg != negB) return neg ? std::strong_ordering::less : std::strong_ordering::greater;
 
-  // Same sign, so the operand with more limbs is further from zero: larger when
-  // both are positive, smaller when both are negative.
   auto const &n = b._Number;
   if (_Number.size() != n.size()) {
     return (_Number.size() > n.size()) != neg
@@ -1148,8 +1123,6 @@ auto numex::BigInt::operator <=>(BigInt const &b) const -> std::strong_ordering 
       : std::strong_ordering::less;
   }
 
-  // Same sign and size, so the top limbs share their sign bit and comparing
-  // every limb as unsigned matches the two's complement ordering.
   for (auto i = n.size(); i-- > 0;) {
     if (_Number[i] != n[i]) return _Number[i] <=> n[i];
   }
@@ -1163,16 +1136,12 @@ auto numex::BigInt::operator ==(std::int64_t const a) const -> bool {
 }
 
 auto numex::BigInt::operator <=>(std::int64_t const a) const -> std::strong_ordering {
-  auto const neg = _IsNegative();
+  auto const neg = IsNegative();
   auto const negA = a < 0;
   if (neg != negA) return neg ? std::strong_ordering::less : std::strong_ordering::greater;
   if (_Number.size() > 1) return neg ? std::strong_ordering::less : std::strong_ordering::greater;
   return _Number[0] <=> static_cast<std::uint64_t>(a);
 }
-
-// ============================================================================
-// Math
-// ============================================================================
 
 auto numex::BigInt::Pow(std::uint64_t exp) const -> BigInt {
   auto temp = BigInt(1);

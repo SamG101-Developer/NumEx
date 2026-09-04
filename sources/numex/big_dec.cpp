@@ -22,7 +22,7 @@ public:
 
   NUMEX_NODISCARD auto GetNumerator() const -> BigInt;
   NUMEX_NODISCARD auto GetDenominator() const -> BigInt;
-
+  NUMEX_NODISCARD auto IsNegative() const -> bool;
   NUMEX_NODISCARD auto ToString() const -> std::string;
   NUMEX_NODISCARD auto Base(std::uint64_t base) const -> std::string;
   NUMEX_NODISCARD auto Point(std::uint64_t num) const -> std::string;
@@ -100,6 +100,10 @@ auto numex::BigDec::GetNumerator() const -> BigInt {
 
 auto numex::BigDec::GetDenominator() const -> BigInt {
   return _Denominator;
+}
+
+auto numex::BigDec::IsNegative() const -> bool {
+  return _Numerator.IsNegative();
 }
 
 auto numex::BigDec::ToString() const -> std::string {
