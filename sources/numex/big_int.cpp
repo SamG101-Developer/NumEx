@@ -37,7 +37,7 @@ class numex::BigInt {
 public:
   BigInt();
   explicit BigInt(std::int64_t num);
-  explicit BigInt(std::string const &decimal);
+  explicit BigInt(std::string const &text);
 
   NUMEX_NODISCARD auto Bin() const -> std::string;
   NUMEX_NODISCARD auto Hex() const -> std::string;
