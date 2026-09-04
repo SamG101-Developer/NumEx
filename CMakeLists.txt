@@ -1,47 +1,79 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required(VERSION 4.4.0)
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "f35a9ac6-8463-4d38-8eec-5d6008153e7d")
+project(NumEx VERSION 0.1.0 LANGUAGES CXX)
 
-project (Bint
-	VERSION "0.1.0"
-	DESCRIPTION "Bint is an arbitrary-precision arithmetic library."
-	LANGUAGES CXX
+# Set standard and include some common packages.
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_MODULE_STD ON)
+set(CMAKE_INSTALL_RPATH "/usr/local/gcc-dev/lib64")
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+
+# Collect source files.
+file(GLOB_RECURSE PUBLIC_HEADERS CONFIGURE_DEPENDS headers/*.hpp)
+file(GLOB_RECURSE MODULE_SOURCES CONFIGURE_DEPENDS sources/*.cpp)
+add_library(${PROJECT_NAME} STATIC)
+
+target_sources(${PROJECT_NAME} PUBLIC
+  FILE_SET CXX_MODULES BASE_DIRS headers sources FILES ${MODULE_SOURCES}
+  FILE_SET HEADERS BASE_DIRS headers FILES ${PUBLIC_HEADERS})
+
+target_compile_features(
+  ${PROJECT_NAME}
+  PUBLIC $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:cxx_std_26>
 )
 
-enable_testing()
+target_compile_features(
+  ${PROJECT_NAME}
+  PUBLIC $<$<CXX_COMPILER_ID:MSVC>:cxx_std_23>
+)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_EXTENSIONS OFF)
-if(MSVC)
-	#add_compile_options(/Wall)
-else()
-	add_compile_options(-Wall -Wextra -pedantic)
-endif()
+target_compile_options(
+  ${PROJECT_NAME}
+  PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/std:c++latest /Zc:preprocessor>
+)
 
-# sources
-include_directories(include)
-aux_source_directory(src/Bint BINT_SRC)
-aux_source_directory(src/Brat BRAT_SRC)
-set(BINT_SRC ${BINT_SRC} ${BRAT_SRC} src/Bint.cpp src/Brat.cpp)
-set(MATH_SRC src/Math.cpp)
-add_library(shareobjects OBJECT ${BINT_SRC} ${MATH_SRC})
+# Create the NumEx library, and link 3rd party libraries.
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/headers>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-# libraries
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+# Install the library + export information
+install(
+  TARGETS ${PROJECT_NAME}
+  EXPORT ${PROJECT_NAME}Targets
+  FILE_SET CXX_MODULES DESTINATION lib/cmake/${PROJECT_NAME}/modules
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-add_library(BeeNum SHARED ${BINT_SRC} ${MATH_SRC})
-add_library(BeeNum_static STATIC $<TARGET_OBJECTS:shareobjects>)
-set_target_properties(BeeNum_static PROPERTIES OUTPUT_NAME BeeNum)
+install(
+  EXPORT ${PROJECT_NAME}Targets
+  NAMESPACE ${PROJECT_NAME}::
+  DESTINATION lib/cmake/${PROJECT_NAME})
 
-# tests
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+include(
+  CMakePackageConfigHelpers)
 
-add_executable(test-main-fast tests/main.cpp ${BINT_SRC} ${MATH_SRC})
-set_target_properties(test-main-fast PROPERTIES COMPILE_FLAGS -Ofast)
-add_test(NAME tst-main-fast COMMAND ./tests/test-main-fast)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion)
 
-aux_source_directory(tests TESTS)
-foreach(tstfile ${TESTS})
-	string(REGEX MATCH "\/(.*)\\.[^.]*$" dummy ${tstfile})
-	add_executable(test-${CMAKE_MATCH_1} ${tstfile} $<TARGET_OBJECTS:shareobjects>)
-	add_test(NAME tst-${CMAKE_MATCH_1} COMMAND ./tests/test-${CMAKE_MATCH_1})
-endforeach()
+configure_package_config_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+  INSTALL_DESTINATION lib/cmake/${PROJECT_NAME})
+
+install(
+  FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+  DESTINATION lib/cmake/${PROJECT_NAME})
+
+# Optional tests and benchmarks.
+option(NUMEX_BUILD_TESTS "Build the NumEx tests" OFF)
+option(NUMEX_BUILD_BENCHMARKS "Build the NumEx benchmarks" OFF)
+
+if (1) # NUMEX_BUILD_TESTS)
+  message("Building tests...")
+  enable_testing()
+  add_subdirectory(tests)
+endif ()
