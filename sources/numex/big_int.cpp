@@ -125,9 +125,12 @@ namespace {
   // Hex() emit; 0 for anything that is not a prefix.
   auto prefixedBase(char const marker) -> int {
     switch (marker) {
-      case 'b': case 'B': return 2;
-      case 'o': case 'O': return 8;
-      case 'x': case 'X': return 16;
+      case 'b':
+      case 'B': return 2;
+      case 'o':
+      case 'O': return 8;
+      case 'x':
+      case 'X': return 16;
       default: return 0;
     }
   }
@@ -142,7 +145,7 @@ numex::BigInt::BigInt() {
 numex::BigInt::BigInt(std::string const &text) : BigInt() {
   // An explicit "digits::base" suffix wins over everything else.
   if (auto const suffix = text.rfind("::"); suffix != std::string::npos) {
-    auto base = static_cast<int>(0);
+    auto base = 0;
     try {
       base = std::stoi(text.substr(suffix + 2));
     }
@@ -199,7 +202,7 @@ auto numex::BigInt::_SetNumber(std::string const &num, int const base) -> void {
     auto prev = static_cast<std::string::size_type>(0);
     while (true) {
       const auto n = num.find(':', prev);
-      auto dec = static_cast<int>(0);
+      auto dec = 0;
       try {
         if (n != std::string::npos) {
           dec = std::stoi(num.substr(prev, n - prev));
@@ -1140,7 +1143,7 @@ auto numex::BigInt::operator <=>(BigInt const &b) const -> std::strong_ordering 
   // both are positive, smaller when both are negative.
   auto const &n = b._Number;
   if (_Number.size() != n.size()) {
-    return _Number.size() > n.size() != neg
+    return (_Number.size() > n.size()) != neg
       ? std::strong_ordering::greater
       : std::strong_ordering::less;
   }
@@ -1247,7 +1250,7 @@ auto numex::BigInt::_OddFact(std::uint64_t const a, std::uint64_t const begin) -
     return _FromUnsigned(a);
   }
 
-  auto n = a - 1 | 1;
+  auto n = (a - 1) | 1;
   if ((n - begin) % 4 == 0) {
     ret = _FromUnsigned(n);
     n -= 2;
