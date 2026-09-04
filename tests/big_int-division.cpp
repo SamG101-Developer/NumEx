@@ -58,6 +58,30 @@ TEST(BigIntDivision, RemainderNegativeDividend) {
 
 TEST(BigIntDivision, RemainderNegativeDivisor) {
   for (auto const &s : divisions) {
-    EXPECT_EQ((BigInt(s[0]) % BigInt("-" + s[1])).ToString(), negated(s[3]));
+    EXPECT_EQ((BigInt(s[0]) % BigInt("-" + s[1])).ToString(), s[3]);
+  }
+}
+
+TEST(BigIntDivision, RemainderBothNegative) {
+  for (auto const &s : divisions) {
+    EXPECT_EQ((BigInt("-" + s[0]) % BigInt("-" + s[1])).ToString(), negated(s[3]));
+  }
+}
+
+TEST(BigIntDivision, BothNegative) {
+  for (auto const &s : divisions) {
+    EXPECT_EQ((BigInt("-" + s[0]) / BigInt("-" + s[1])).ToString(), s[2]);
+  }
+}
+
+TEST(BigIntDivision, DivisionIdentity) {
+  for (auto const &s : divisions) {
+    for (auto const &an : {s[0], negated(s[0])}) {
+      for (auto const &bn : {s[1], negated(s[1])}) {
+        auto const a = BigInt(an);
+        auto const b = BigInt(bn);
+        EXPECT_EQ((a / b) * b + a % b, a) << an << ", " << bn;
+      }
+    }
   }
 }
