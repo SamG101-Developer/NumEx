@@ -18,7 +18,7 @@ public:
   BigDec();
   explicit BigDec(std::int64_t num);
   explicit BigDec(std::string const &s);
-  BigDec(BigInt const &num, BigInt const &den);
+  explicit BigDec(BigInt const &num, BigInt const &den = {});
 
   NUMEX_NODISCARD auto GetNumerator() const -> BigInt;
   NUMEX_NODISCARD auto GetDenominator() const -> BigInt;
@@ -55,6 +55,7 @@ public:
   NUMEX_NODISCARD auto Ceil() const -> BigInt;
   NUMEX_NODISCARD auto Trunc() const -> BigInt;
   NUMEX_NODISCARD auto Round() const -> BigInt;
+  NUMEX_NODISCARD auto Fmod(BigDec const &b) const -> BigDec;
 
   NUMEX_NODISCARD auto Pow(std::uint64_t exp) const -> BigDec;
   NUMEX_NODISCARD auto Gcd(BigDec const &b) const -> BigDec;
@@ -302,30 +303,35 @@ auto numex::BigDec::Min(BigDec const &b) const -> BigDec {
 }
 
 auto numex::BigDec::Trunc() const -> BigInt {
-  // BigInt division truncates towards zero already.
   return _Numerator / _Denominator;
 }
 
 auto numex::BigDec::Floor() const -> BigInt {
-  auto const quot = Trunc();
-  // Truncation already rounds down for a non-negative value; a negative one with
-  // a remainder was rounded up towards zero, so it needs a step back.
+  auto quot = Trunc();
   if (!IsNegative() || quot * _Denominator == _Numerator) return quot;
   return quot - BigInt(1);
 }
 
 auto numex::BigDec::Ceil() const -> BigInt {
-  auto const quot = Trunc();
+  auto quot = Trunc();
   if (IsNegative() || quot * _Denominator == _Numerator) return quot;
   return quot + BigInt(1);
 }
 
 auto numex::BigDec::Round() const -> BigInt {
-  // Halfway cases round away from zero, matching std::round.
-  auto const quot = Trunc();
+  auto quot = Trunc();
   auto const rmd = (_Numerator - quot * _Denominator).Abs();
   if (rmd * BigInt(2) < _Denominator) return quot;
   return IsNegative() ? quot - BigInt(1) : quot + BigInt(1);
+}
+
+auto numex::BigDec::Fmod(BigDec const &b) const -> BigDec {
+  if (b == 0) {
+    throw std::invalid_argument("Division by zero!");
+  }
+
+  auto const quot = (*this / b).Trunc();
+  return *this - b * BigDec(quot, BigInt(1));
 }
 
 auto numex::BigDec::Pow(std::uint64_t const exp) const -> BigDec {
