@@ -914,9 +914,10 @@ auto numex::BigInt::_Div(BigInt &rmdDividend, BigInt &resQuot, BigInt const &div
   auto d = divisor;
   auto &c = resQuot;
 
-  auto const neg = (a.IsNegative() != d.IsNegative());
+  auto const negDividend = a.IsNegative();
+  auto const negQuot = negDividend != d.IsNegative();
 
-  if (a.IsNegative()) {
+  if (negDividend) {
     a = -a;
   }
 
@@ -925,9 +926,7 @@ auto numex::BigInt::_Div(BigInt &rmdDividend, BigInt &resQuot, BigInt const &div
   }
 
   if (a < d) {
-    if (neg) {
-      a = -a;
-    }
+    if (negDividend) { a = -a; }
     return;
   }
 
@@ -956,8 +955,11 @@ auto numex::BigInt::_Div(BigInt &rmdDividend, BigInt &resQuot, BigInt const &div
     d >>= 1;
   }
 
-  if (neg) {
+  if (negQuot) {
     c = -c;
+  }
+
+  if (negDividend) {
     a = -a;
   }
 }
