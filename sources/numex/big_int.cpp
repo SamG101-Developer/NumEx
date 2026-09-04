@@ -102,6 +102,9 @@ public:
   auto operator ==(std::int64_t a) const -> bool;
   auto operator <=>(std::int64_t a) const -> std::strong_ordering;
 
+  NUMEX_NODISCARD auto Abs() const -> BigInt;
+  NUMEX_NODISCARD auto Max(BigInt const &b) const -> BigInt;
+  NUMEX_NODISCARD auto Min(BigInt const &b) const -> BigInt;
   NUMEX_NODISCARD auto Pow(std::uint64_t exp) const -> BigInt;
   NUMEX_NODISCARD auto ModPow(std::uint64_t exp, std::uint64_t mod) const -> BigInt;
   NUMEX_NODISCARD auto Gcd(BigInt const &b) const -> BigInt;
@@ -1141,6 +1144,18 @@ auto numex::BigInt::operator <=>(std::int64_t const a) const -> std::strong_orde
   if (neg != negA) return neg ? std::strong_ordering::less : std::strong_ordering::greater;
   if (_Number.size() > 1) return neg ? std::strong_ordering::less : std::strong_ordering::greater;
   return _Number[0] <=> static_cast<std::uint64_t>(a);
+}
+
+auto numex::BigInt::Abs() const -> BigInt {
+  return IsNegative() ? -*this : *this;
+}
+
+auto numex::BigInt::Max(BigInt const &b) const -> BigInt {
+  return *this < b ? b : *this;
+}
+
+auto numex::BigInt::Min(BigInt const &b) const -> BigInt {
+  return b < *this ? b : *this;
 }
 
 auto numex::BigInt::Pow(std::uint64_t exp) const -> BigInt {

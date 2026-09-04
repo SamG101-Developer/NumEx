@@ -47,6 +47,15 @@ public:
   auto operator ==(std::int64_t a) const -> bool;
   auto operator <=>(std::int64_t a) const -> std::strong_ordering;
 
+  NUMEX_NODISCARD auto Abs() const -> BigDec;
+  NUMEX_NODISCARD auto Max(BigDec const &b) const -> BigDec;
+  NUMEX_NODISCARD auto Min(BigDec const &b) const -> BigDec;
+
+  NUMEX_NODISCARD auto Floor() const -> BigInt;
+  NUMEX_NODISCARD auto Ceil() const -> BigInt;
+  NUMEX_NODISCARD auto Trunc() const -> BigInt;
+  NUMEX_NODISCARD auto Round() const -> BigInt;
+
   NUMEX_NODISCARD auto Pow(std::uint64_t exp) const -> BigDec;
   NUMEX_NODISCARD auto Gcd(BigDec const &b) const -> BigDec;
   NUMEX_NODISCARD auto Lcm(BigDec const &b) const -> BigDec;
@@ -278,6 +287,45 @@ auto numex::BigDec::operator ==(std::int64_t const a) const -> bool {
 
 auto numex::BigDec::operator <=>(std::int64_t const a) const -> std::strong_ordering {
   return _Numerator <=> _Denominator * a;
+}
+
+auto numex::BigDec::Abs() const -> BigDec {
+  return IsNegative() ? -*this : *this;
+}
+
+auto numex::BigDec::Max(BigDec const &b) const -> BigDec {
+  return *this < b ? b : *this;
+}
+
+auto numex::BigDec::Min(BigDec const &b) const -> BigDec {
+  return b < *this ? b : *this;
+}
+
+auto numex::BigDec::Trunc() const -> BigInt {
+  // BigInt division truncates towards zero already.
+  return _Numerator / _Denominator;
+}
+
+auto numex::BigDec::Floor() const -> BigInt {
+  auto const quot = Trunc();
+  // Truncation already rounds down for a non-negative value; a negative one with
+  // a remainder was rounded up towards zero, so it needs a step back.
+  if (!IsNegative() || quot * _Denominator == _Numerator) return quot;
+  return quot - BigInt(1);
+}
+
+auto numex::BigDec::Ceil() const -> BigInt {
+  auto const quot = Trunc();
+  if (IsNegative() || quot * _Denominator == _Numerator) return quot;
+  return quot + BigInt(1);
+}
+
+auto numex::BigDec::Round() const -> BigInt {
+  // Halfway cases round away from zero, matching std::round.
+  auto const quot = Trunc();
+  auto const rmd = (_Numerator - quot * _Denominator).Abs();
+  if (rmd * BigInt(2) < _Denominator) return quot;
+  return IsNegative() ? quot - BigInt(1) : quot + BigInt(1);
 }
 
 auto numex::BigDec::Pow(std::uint64_t const exp) const -> BigDec {
