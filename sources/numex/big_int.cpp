@@ -260,8 +260,9 @@ auto numex::BigInt::_SetDecimal(std::string const &s) -> void {
 
   for (; it != s.end(); ++it) {
     *this *= 10;
+    // A character below '0' underflows to a negative digit, so both ends need the check.
     const auto i = static_cast<std::int64_t>(*it - '0');
-    if (i > 9) {
+    if (i < 0 || i > 9) {
       auto err = std::string("Unexpected symbol! - ");
       err.push_back(*it);
       throw std::invalid_argument(err);

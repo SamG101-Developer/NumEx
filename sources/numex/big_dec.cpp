@@ -24,6 +24,7 @@ public:
   NUMEX_NODISCARD auto GetDenominator() const -> BigInt;
   NUMEX_NODISCARD auto IsNegative() const -> bool;
   NUMEX_NODISCARD auto ToString() const -> std::string;
+  NUMEX_NODISCARD auto Decimal(std::uint64_t max_places = 64) const -> std::string;
   NUMEX_NODISCARD auto Base(std::uint64_t base) const -> std::string;
   NUMEX_NODISCARD auto Point(std::uint64_t num) const -> std::string;
   NUMEX_NODISCARD auto Point(std::uint64_t num, std::uint64_t base) const -> std::string;
@@ -85,9 +86,72 @@ numex::BigDec::BigDec(std::int64_t const num) :
 }
 
 numex::BigDec::BigDec(std::string const &s) {
-  auto const end = s.find('/');
-  _Numerator = BigInt(s.substr(0, end));
-  _Denominator = end != std::string::npos ? BigInt(s.substr(end + 1)) : BigInt(1);
+  // "n/d" is the explicit rational form; either side is whatever BigInt spells.
+  if (auto const bar = s.find('/'); bar != std::string::npos) {
+    _Numerator = BigInt(s.substr(0, bar));
+    _Denominator = BigInt(s.substr(bar + 1));
+    _Simplify();
+    return;
+  }
+
+  // A "digits::base" suffix or an 0b/0o/0x prefix means a whole number in another base, which BigInt already reads.
+  auto const body = std::string_view(s).substr(!s.empty() && (s.front() == '-' || s.front() == '+') ? 1 : 0);
+  auto const prefixed = body.size() >= 2 && body.front() == '0' && std::string_view("bBoOxX").contains(body[1]);
+  if (prefixed || s.find("::") != std::string::npos) {
+    _Numerator = BigInt(s);
+    _Denominator = BigInt(1);
+    _Simplify();
+    return;
+  }
+
+  // Otherwise a decimal, written with an optional fraction and an optional power-of-ten exponent.
+  auto mantissa = std::string(!s.empty() && s.front() == '-' ? "-" : "");
+  auto places = std::int64_t{0};
+  auto exponent = std::int64_t{0};
+  auto point = false;
+  auto digits = false;
+
+  auto i = static_cast<std::size_t>(body.data() - s.data());
+  for (; i < s.size(); ++i) {
+    auto const c = s[i];
+    if (c == 'e' || c == 'E') { break; }
+    if (c == '.') {
+      if (point) { throw std::invalid_argument("Unexpected symbol! - '.'"); }
+      point = true;
+      continue;
+    }
+    if (c < '0' || c > '9') {
+      auto err = std::string("Unexpected symbol! - '");
+      err.push_back(c);
+      err.push_back('\'');
+      throw std::invalid_argument(err);
+    }
+    mantissa.push_back(c);
+    digits = true;
+    if (point) { ++places; }
+  }
+
+  if (!digits) {
+    throw std::invalid_argument("Empty number!");
+  }
+
+  if (i < s.size()) {
+    auto const text = std::string_view(s).substr(i + 1);
+    auto const first = text.data() + (!text.empty() && text.front() == '+' ? 1 : 0);
+    auto const last = text.data() + text.size();
+    if (auto const [ptr, ec] = std::from_chars(first, last, exponent); ec != std::errc{} || ptr != last) {
+      throw std::invalid_argument("Invalid exponent! - '" + std::string(text) + "'");
+    }
+  }
+
+  _Numerator = BigInt(mantissa);
+  _Denominator = BigInt(1);
+  if (auto const shift = exponent - places; shift > 0) {
+    _Numerator *= BigInt(10).Pow(static_cast<std::uint64_t>(shift));
+  }
+  else if (shift < 0) {
+    _Denominator = BigInt(10).Pow(static_cast<std::uint64_t>(-shift));
+  }
   _Simplify();
 }
 
@@ -118,6 +182,27 @@ auto numex::BigDec::IsNegative() const -> bool {
 
 auto numex::BigDec::ToString() const -> std::string {
   return Base(10);
+}
+
+auto numex::BigDec::Decimal(std::uint64_t const max_places) const -> std::string {
+  // The sign is carried separately so that a magnitude below one still prints as "-0.5".
+  auto const neg = IsNegative();
+  auto rmd = neg ? -_Numerator : _Numerator;
+  auto const whole = rmd / _Denominator;
+  rmd %= _Denominator;
+
+  auto s = std::string(neg ? "-" : "") + whole.ToString();
+
+  // A fraction that terminates within the budget is exact; one that does not is cut short here.
+  auto frac = std::string();
+  for (auto i = static_cast<std::uint64_t>(0); i < max_places && rmd != 0; ++i) {
+    rmd *= 10;
+    frac += (rmd / _Denominator).ToString();
+    rmd %= _Denominator;
+  }
+
+  while (!frac.empty() && frac.back() == '0') { frac.pop_back(); }
+  return frac.empty() ? s : s + '.' + frac;
 }
 
 auto numex::BigDec::Base(std::uint64_t const base) const -> std::string {
