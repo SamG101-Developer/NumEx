@@ -125,6 +125,12 @@ export auto operator |(std::int64_t a, numex::BigInt const &b) -> numex::BigInt;
 export auto operator ^(std::int64_t a, numex::BigInt const &b) -> numex::BigInt;
 
 namespace {
+  // MSVC cannot link std::strong_ordering's named constants when they arrive via
+  // `import std;`, so derive them from the builtin integer <=> instead.
+  constexpr auto ordering(int const sign) -> std::strong_ordering {
+    return sign <=> 0;
+  }
+
   // The radix marked by an 0b / 0o / 0x prefix, matching what Bin(), Oct() and
   // Hex() emit; 0 for anything that is not a prefix.
   auto prefixedBase(char const marker) -> int {
@@ -1120,20 +1126,18 @@ auto numex::BigInt::operator ==(BigInt const &b) const -> bool {
 auto numex::BigInt::operator <=>(BigInt const &b) const -> std::strong_ordering {
   auto const neg = IsNegative();
   auto const negB = b.IsNegative();
-  if (neg != negB) return neg ? std::strong_ordering::less : std::strong_ordering::greater;
+  if (neg != negB) return ordering(neg ? -1 : 1);
 
   auto const &n = b._Number;
   if (_Number.size() != n.size()) {
-    return (_Number.size() > n.size()) != neg
-      ? std::strong_ordering::greater
-      : std::strong_ordering::less;
+    return ordering((_Number.size() > n.size()) != neg ? 1 : -1);
   }
 
   for (auto i = n.size(); i-- > 0;) {
     if (_Number[i] != n[i]) return _Number[i] <=> n[i];
   }
 
-  return std::strong_ordering::equal;
+  return ordering(0);
 }
 
 auto numex::BigInt::operator ==(std::int64_t const a) const -> bool {
@@ -1144,8 +1148,8 @@ auto numex::BigInt::operator ==(std::int64_t const a) const -> bool {
 auto numex::BigInt::operator <=>(std::int64_t const a) const -> std::strong_ordering {
   auto const neg = IsNegative();
   auto const negA = a < 0;
-  if (neg != negA) return neg ? std::strong_ordering::less : std::strong_ordering::greater;
-  if (_Number.size() > 1) return neg ? std::strong_ordering::less : std::strong_ordering::greater;
+  if (neg != negA) return ordering(neg ? -1 : 1);
+  if (_Number.size() > 1) return ordering(neg ? -1 : 1);
   return _Number[0] <=> static_cast<std::uint64_t>(a);
 }
 
