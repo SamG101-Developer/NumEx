@@ -74,7 +74,7 @@ install(
 option(NUMEX_BUILD_TESTS "Build the NumEx tests" OFF)
 option(NUMEX_BUILD_BENCHMARKS "Build the NumEx benchmarks" OFF)
 
-if (1) # NUMEX_BUILD_TESTS)
+if (NUMEX_BUILD_TESTS)
   message("Building tests...")
   enable_testing()
   add_subdirectory(tests)
