@@ -707,8 +707,9 @@ auto numex::BigInt::operator *=(BigInt const &a) -> BigInt& {
 auto numex::BigInt::Mult(std::uint64_t &operand1ResHigh, std::uint64_t &operand2ResLow) const -> void {
 #if defined(__SIZEOF_INT128__)
   // A single widening multiply where the portable path below needs four 32-bit
-  // partial products and their carries.
-  auto const product = static_cast<unsigned __int128>(operand1ResHigh) * operand2ResLow;
+  // partial products and their carries. `__extension__` because `__int128` is a
+  // GNU extension, compat with -Wpedantic.
+  auto const product = __extension__ static_cast<unsigned __int128>(operand1ResHigh) * operand2ResLow;
   operand1ResHigh = static_cast<std::uint64_t>(product >> _LimbBits);
   operand2ResLow = static_cast<std::uint64_t>(product);
 #else
