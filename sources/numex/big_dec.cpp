@@ -2,7 +2,7 @@ module;
 #include <numex/macros.hpp>
 
 export module numex.big_dec;
-import ankerl;
+import numex.ankerl;
 import numex.big_int;
 import std;
 
