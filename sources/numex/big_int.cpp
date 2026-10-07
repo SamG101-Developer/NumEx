@@ -2,6 +2,7 @@ module;
 #include <numex/macros.hpp>
 
 export module numex.big_int;
+import ankerl;
 import std;
 
 namespace numex {
@@ -39,6 +40,10 @@ public:
   explicit BigInt(std::string const &text);
 
   NUMEX_NODISCARD auto IsNegative() const -> bool;
+
+  /// A hash of the value, consistent with "==" (which compares the limbs): the limbs' bytes, hashed in place, so
+  /// nothing is allocated.
+  NUMEX_NODISCARD auto Hash() const -> std::uint64_t;
 
   NUMEX_NODISCARD auto Bin() const -> std::string;
   NUMEX_NODISCARD auto Hex() const -> std::string;
@@ -303,6 +308,12 @@ auto numex::BigInt::_ExtendNumberBySizeOf(BigInt &extNumber, BigInt const &a) ->
 
 auto numex::BigInt::IsNegative() const -> bool {
   return (_Number.back() >> (_LimbBits - 1)) != 0;
+}
+
+auto numex::BigInt::Hash() const -> std::uint64_t {
+  auto const bytes = std::string_view(
+    reinterpret_cast<char const*>(_Number.data()), _Number.size() * sizeof(std::uint64_t));
+  return ankerl::unordered_dense::hash<std::string_view>{}(bytes);
 }
 
 auto numex::BigInt::Bin() const -> std::string {

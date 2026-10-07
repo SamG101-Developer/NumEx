@@ -2,6 +2,7 @@ module;
 #include <numex/macros.hpp>
 
 export module numex.big_dec;
+import ankerl;
 import numex.big_int;
 import std;
 
@@ -23,6 +24,10 @@ public:
   NUMEX_NODISCARD auto GetNumerator() const -> BigInt;
   NUMEX_NODISCARD auto GetDenominator() const -> BigInt;
   NUMEX_NODISCARD auto IsNegative() const -> bool;
+
+  /// A hash of the value, consistent with "==" (which compares the numerator and the denominator, kept in lowest
+  /// terms): the two parts' hashes ("BigInt::Hash"), hashed together, so nothing is allocated.
+  NUMEX_NODISCARD auto Hash() const -> std::uint64_t;
   NUMEX_NODISCARD auto ToString() const -> std::string;
   NUMEX_NODISCARD auto Decimal(std::uint64_t max_places = 64) const -> std::string;
   NUMEX_NODISCARD auto Base(std::uint64_t base) const -> std::string;
@@ -178,6 +183,12 @@ auto numex::BigDec::GetDenominator() const -> BigInt {
 
 auto numex::BigDec::IsNegative() const -> bool {
   return _Numerator.IsNegative();
+}
+
+auto numex::BigDec::Hash() const -> std::uint64_t {
+  auto const parts = std::array{_Numerator.Hash(), _Denominator.Hash()};
+  auto const bytes = std::string_view(reinterpret_cast<char const*>(parts.data()), sizeof(parts));
+  return ankerl::unordered_dense::hash<std::string_view>{}(bytes);
 }
 
 auto numex::BigDec::ToString() const -> std::string {

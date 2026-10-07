@@ -13,6 +13,9 @@ if (NOT MSVC)
   add_compile_options(-fvisibility-inlines-hidden)
 endif ()
 
+# Third party.
+find_package(unordered_dense CONFIG REQUIRED)
+
 # Collect source files.
 file(GLOB_RECURSE PUBLIC_HEADERS CONFIGURE_DEPENDS headers/*.hpp)
 file(GLOB_RECURSE MODULE_SOURCES CONFIGURE_DEPENDS sources/*.cpp)
@@ -34,6 +37,10 @@ target_compile_features(
   ${PROJECT_NAME}
   PUBLIC $<$<CXX_COMPILER_ID:MSVC>:cxx_std_23>)
 
+target_compile_definitions(
+  ${PROJECT_NAME}
+  PRIVATE ANKERL_UNORDERED_DENSE_HAS_SSE2=0)
+
 target_compile_options(
   ${PROJECT_NAME}
   PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/std:c++latest /Zc:preprocessor>)
@@ -42,6 +49,10 @@ target_compile_options(
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/headers>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(
+  ${PROJECT_NAME}
+  PUBLIC unordered_dense::unordered_dense)
 
 # Install the library + export information
 install(
